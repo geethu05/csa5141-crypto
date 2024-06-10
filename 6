@@ -1,0 +1,65 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Function to find modular inverse of a under modulo m
+int modInverse(int a, int m) {
+    a = a % m;
+    for (int x = 1; x < m; x++) {
+        if ((a * x) % m == 1) return x;
+    }
+    return -1;
+}
+
+// Function to decrypt affine cipher
+void decryptAffine(char *ciphertext, int a, int b) {
+    int a_inv = modInverse(a, 26);
+    if (a_inv == -1) {
+        printf("Multiplicative inverse does not exist, decryption is not possible.\n");
+        return;
+    }
+
+    int len = strlen(ciphertext);
+    for (int i = 0; i < len; i++) {
+        if (ciphertext[i] >= 'A' && ciphertext[i] <= 'Z') {
+            int y = ciphertext[i] - 'A';
+            int x = (a_inv * (y - b + 26)) % 26;
+            printf("%c", x + 'A');
+        } else {
+            printf("%c", ciphertext[i]);
+        }
+    }
+    printf("\n");
+}
+
+int main() {
+    // Given ciphertext and frequency analysis
+    char ciphertext[] = "YOUR_CIPHERTEXT_HERE";
+    int freq1 = 1; // 'B'
+    int freq2 = 20; // 'U'
+    int plain1 = 4; // 'E'
+    int plain2 = 19; // 'T'
+
+    // Solve equations: 4a + b ≡ 1 (mod 26) and 19a + b ≡ 20 (mod 26)
+    int a, b;
+
+    for (a = 0; a < 26; a++) {
+        b = (freq1 - plain1 * a) % 26;
+        if (b < 0) b += 26;
+        if ((plain2 * a + b) % 26 == freq2) {
+            break;
+        }
+    }
+
+    if (a == 26) {
+        printf("No valid key found.\n");
+        return 1;
+    }
+
+    printf("Found keys: a = %d, b = %d\n", a, b);
+
+    // Decrypt the ciphertext
+    decryptAffine(ciphertext, a, b);
+
+    return 0;
+}
