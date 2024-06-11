@@ -1,0 +1,43 @@
+#include <stdio.h>
+
+// Function to find the key matrix using known plaintext-ciphertext pairs
+void findKey(int plaintext[], int ciphertext[], int n, int key[][2]) {
+    // Solving the equation P * K = C for the key matrix K
+    for (int i = 0; i < n; i += 2) {
+        // Calculate the determinant of the plaintext-ciphertext pairs
+        int detP = plaintext[i] * plaintext[i + 3] - plaintext[i + 1] * plaintext[i + 2];
+        int detC = ciphertext[i] * plaintext[i + 3] - ciphertext[i + 1] * plaintext[i + 2];
+
+        // Calculate the key matrix elements
+        key[0][0] = detC * plaintext[i + 3] % 26;
+        key[0][1] = (-detC * plaintext[i + 1]) % 26;
+        key[1][0] = (-detC * plaintext[i + 2]) % 26;
+        key[1][1] = detC * plaintext[i] % 26;
+
+        // Modulo operations to ensure key elements are in the range [0, 25]
+        while (key[0][0] < 0) key[0][0] += 26;
+        while (key[0][1] < 0) key[0][1] += 26;
+        while (key[1][0] < 0) key[1][0] += 26;
+        while (key[1][1] < 0) key[1][1] += 26;
+
+        // Print the key matrix
+        printf("Key for pair %d: \n", i/2 + 1);
+        printf("%d %d\n", key[0][0], key[0][1]);
+        printf("%d %d\n\n", key[1][0], key[1][1]);
+    }
+}
+
+int main() {
+    // Known plaintext-ciphertext pairs
+    int plaintext[] = {0, 1, 2, 3, 4, 5}; // Example pairs
+    int ciphertext[] = {4, 5, 6, 7, 8, 9}; // Example pairs
+    int n = sizeof(plaintext) / sizeof(plaintext[0]);
+
+    // Key matrix
+    int key[2][2];
+
+    // Find the key matrix
+    findKey(plaintext, ciphertext, n, key);
+
+    return 0;
+}
