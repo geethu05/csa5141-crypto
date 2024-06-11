@@ -1,0 +1,58 @@
+#include <openssl/des.h>
+#include <openssl/rand.h>
+#include <string.h>
+#include <stdio.h>
+
+// Error handling
+void handleErrors() {
+    fprintf(stderr, "An error occurred\n");
+    exit(1);
+}
+
+// Function to perform 3DES CBC encryption
+void encrypt(const unsigned char *plaintext, int plaintext_len, const unsigned char *key, const unsigned char *iv, unsigned char *ciphertext) {
+    DES_cblock key1, key2, key3;
+    DES_key_schedule ks1, ks2, ks3;
+
+    // Split the key into three parts for 3DES
+    memcpy(key1, key, 8);
+    memcpy(key2, key + 8, 8);
+    memcpy(key3, key + 16, 8);
+
+    // Set encryption keys
+    DES_set_key_unchecked(&key1, &ks1);
+    DES_set_key_unchecked(&key2, &ks2);
+    DES_set_key_unchecked(&key3, &ks3);
+
+    // Perform encryption
+    DES_ede3_cbc_encrypt(plaintext, ciphertext, plaintext_len, &ks1, &ks2, &ks3, (DES_cblock *)iv, DES_ENCRYPT);
+}
+
+int main() {
+    // Sample plaintext, key, and IV
+    unsigned char plaintext[] = "This is a secret message.";
+    unsigned char key[24];
+    unsigned char iv[DES_KEY_SZ];
+    unsigned char ciphertext[128];
+    int ciphertext_len;
+
+    // Generate a random key and IV
+    if (!RAND_bytes(key, sizeof(key))) {
+        handleErrors();
+    }
+    if (!RAND_bytes(iv, sizeof(iv))) {
+        handleErrors();
+    }
+
+    // Encrypt the plaintext
+    encrypt(plaintext, strlen((char *)plaintext) + 1, key, iv, ciphertext);
+
+    // Print the ciphertext
+    printf("Ciphertext is:\n");
+    for (int i = 0; i < strlen((char *)plaintext) + 1; i++) {
+        printf("%02x", ciphertext[i]);
+    }
+    printf("\n");
+
+    return 0;
+}
