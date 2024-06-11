@@ -1,0 +1,51 @@
+#include <openssl/des.h>
+#include <openssl/rand.h>
+#include <string.h>
+#include <stdio.h>
+
+// Error handling
+void handleErrors() {
+    fprintf(stderr, "An error occurred\n");
+    exit(1);
+}
+
+// Function to perform DES ECB encryption
+void encrypt_ecb(const unsigned char *plaintext, int plaintext_len, const unsigned char *key, unsigned char *ciphertext) {
+    DES_cblock key_block;
+    DES_key_schedule key_schedule;
+
+    // Set the key
+    memcpy(key_block, key, 8);
+    DES_set_key_unchecked(&key_block, &key_schedule);
+
+    // Perform encryption in ECB mode
+    int nblocks = plaintext_len / 8 + (plaintext_len % 8 ? 1 : 0); // Number of 8-byte blocks
+    for (int i = 0; i < nblocks; i++) {
+        DES_ecb_encrypt((DES_cblock *)(plaintext + i * 8), (DES_cblock *)(ciphertext + i * 8), &key_schedule, DES_ENCRYPT);
+    }
+}
+
+int main() {
+    // Sample plaintext, key
+    unsigned char plaintext[] = "This is a secret message.";
+    unsigned char key[8];
+    unsigned char ciphertext[128];
+    int plaintext_len = strlen((char *)plaintext) + 1;
+
+    // Generate a random key
+    if (!RAND_bytes(key, sizeof(key))) {
+        handleErrors();
+    }
+
+    // Encrypt the plaintext
+    encrypt_ecb(plaintext, plaintext_len, key, ciphertext);
+
+    // Print the ciphertext
+    printf("Ciphertext is:\n");
+    for (int i = 0; i < plaintext_len; i++) {
+        printf("%02x", ciphertext[i]);
+    }
+    printf("\n");
+
+    return 0;
+}
