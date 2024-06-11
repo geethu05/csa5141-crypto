@@ -1,0 +1,29 @@
+#include <stdio.h>
+
+// Function to calculate the number of possible keys without considering identical encryption results
+long long possibleKeysWithoutDuplicates() {
+    long long count = 0;
+    for (int i = 0; i < 25; i++) {
+        for (int j = i + 1; j < 25; j++) {
+            if (i != 8 && j != 8) { // excluding 'J' which is combined with 'I'
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
+// Function to calculate the number of effectively unique keys taking into account identical encryption results
+long long effectiveUniqueKeys() {
+    // Number of possible keys without considering identical encryption results
+    long long possibleKeys = possibleKeysWithoutDuplicates();
+    // Each pair of keys that produce identical encryption results
+    long long duplicates = 6 * 5 / 2; // 6 pairs of letters with 5 remaining choices for each pair
+    return possibleKeys - duplicates;
+}
+
+int main() {
+    printf("Number of possible keys without considering identical encryption results: %lld\n", possibleKeysWithoutDuplicates());
+    printf("Number of effectively unique keys considering identical encryption results: %lld\n", effectiveUniqueKeys());
+    return 0;
+}
