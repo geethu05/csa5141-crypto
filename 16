@@ -1,0 +1,93 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define ALPHABET_SIZE 26
+
+// Define the expected frequencies of English letters (in percent)
+const double english_freq[ALPHABET_SIZE] = {
+    8.2, 1.5, 2.8, 4.3, 12.7, 2.2, 2.0, 6.1, 7.0, 0.2, 0.8, 4.0, 2.4,
+    6.7, 7.5, 1.9, 0.1, 6.0, 6.3, 9.1, 2.8, 1.0, 2.4, 0.2, 2.0, 0.1
+};
+
+// Function to calculate the frequency of letters in the text
+void calculate_frequency(char *text, int *frequency) {
+    int len = strlen(text);
+    for (int i = 0; i < len; i++) {
+        if (isalpha(text[i])) {
+            frequency[tolower(text[i]) - 'a']++;
+        }
+    }
+}
+
+// Function to calculate the chi-squared statistic
+double chi_squared(int *observed, int *expected, int size) {
+    double chi_sq = 0;
+    for (int i = 0; i < size; i++) {
+        chi_sq += ((observed[i] - expected[i]) * (observed[i] - expected[i])) / (double)expected[i];
+    }
+    return chi_sq;
+}
+
+// Function to decrypt the ciphertext using a given key
+void decrypt(char *ciphertext, char *key) {
+    int len = strlen(ciphertext);
+    printf("Key: %s, Plaintext: ", key);
+    for (int i = 0; i < len; i++) {
+        if (isalpha(ciphertext[i])) {
+            printf("%c", key[tolower(ciphertext[i]) - 'a']);
+        } else {
+            printf("%c", ciphertext[i]);
+        }
+    }
+    printf("\n");
+}
+
+// Function to perform the letter frequency attack
+void frequency_attack(char *ciphertext) {
+    int frequency[ALPHABET_SIZE] = {0};
+    calculate_frequency(ciphertext, frequency);
+
+    // Create a copy of the frequency array to sort
+    int sorted_frequency[ALPHABET_SIZE];
+    memcpy(sorted_frequency, frequency, ALPHABET_SIZE * sizeof(int));
+
+    // Sort the frequency array in descending order
+    for (int i = 0; i < ALPHABET_SIZE - 1; i++) {
+        for (int j = i + 1; j < ALPHABET_SIZE; j++) {
+            if (sorted_frequency[i] < sorted_frequency[j]) {
+                int temp = sorted_frequency[i];
+                sorted_frequency[i] = sorted_frequency[j];
+                sorted_frequency[j] = temp;
+            }
+        }
+    }
+
+    // Generate possible plaintexts based on the sorted frequency
+    for (int k = 0; k < ALPHABET_SIZE; k++) {
+        char key[ALPHABET_SIZE + 1];
+        memset(key, 0, sizeof(key));
+        int key_index = 0;
+
+        // Try to map the highest frequency letters to the most common English letters
+        for (int i = 0; i < ALPHABET_SIZE; i++) {
+            for (int j = 0; j < ALPHABET_SIZE; j++) {
+                if (frequency[j] == sorted_frequency[(i + k) % ALPHABET_SIZE]) {
+                    key[key_index++] = 'a' + j;
+                }
+            }
+        }
+
+        decrypt(ciphertext, key);
+    }
+}
+
+int main() {
+    char ciphertext[] = "Jxu qjwxkx, wkh iwk cuiiqwvxq kb cuxrwb.";
+
+    printf("Ciphertext: %s\n", ciphertext);
+    frequency_attack(ciphertext);
+
+    return 0;
+}
