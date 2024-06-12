@@ -1,0 +1,80 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <time.h>
+
+// Function to perform modular exponentiation
+uint64_t mod_exp(uint64_t base, uint64_t exp, uint64_t mod) {
+    uint64_t result = 1;
+    base = base % mod;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result = (result * base) % mod;
+        }
+        exp = exp >> 1;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+// Traditional Diffie-Hellman key exchange
+void diffie_hellman(uint64_t a, uint64_t q) {
+    // Alice and Bob select secret numbers
+    uint64_t alice_secret = rand() % q;
+    uint64_t bob_secret = rand() % q;
+
+    // Compute public values
+    uint64_t alice_public = mod_exp(a, alice_secret, q);
+    uint64_t bob_public = mod_exp(a, bob_secret, q);
+
+    // Exchange public values and compute shared secret
+    uint64_t alice_shared = mod_exp(bob_public, alice_secret, q);
+    uint64_t bob_shared = mod_exp(alice_public, bob_secret, q);
+
+    printf("Traditional Diffie-Hellman:\n");
+    printf("Alice's secret: %lu, Bob's secret: %lu\n", alice_secret, bob_secret);
+    printf("Alice's public: %lu, Bob's public: %lu\n", alice_public, bob_public);
+    printf("Alice's shared key: %lu, Bob's shared key: %lu\n", alice_shared, bob_shared);
+}
+
+// Modified Diffie-Hellman key exchange
+void modified_diffie_hellman(uint64_t a, uint64_t q) {
+    // Alice and Bob select secret numbers
+    uint64_t alice_secret = rand() % q;
+    uint64_t bob_secret = rand() % q;
+
+    // Compute public values (x * a % q instead of a^x % q)
+    uint64_t alice_public = (alice_secret * a) % q;
+    uint64_t bob_public = (bob_secret * a) % q;
+
+    // Exchange public values and compute shared secret
+    // This method is insecure as shown by the calculations below
+    uint64_t alice_shared = (bob_public * alice_secret) % q;
+    uint64_t bob_shared = (alice_public * bob_secret) % q;
+
+    printf("Modified Diffie-Hellman (Insecure):\n");
+    printf("Alice's secret: %lu, Bob's secret: %lu\n", alice_secret, bob_secret);
+    printf("Alice's public: %lu, Bob's public: %lu\n", alice_public, bob_public);
+    printf("Alice's shared key (insecure): %lu, Bob's shared key (insecure): %lu\n", alice_shared, bob_shared);
+
+    // Demonstrating the insecurity:
+    uint64_t eve_secret_alice = alice_public / a;
+    uint64_t eve_secret_bob = bob_public / a;
+
+    printf("Eve's inferred Alice's secret: %lu, Eve's inferred Bob's secret: %lu\n", eve_secret_alice, eve_secret_bob);
+}
+
+int main() {
+    srand(time(NULL));
+
+    uint64_t a = 5;  // Public base
+    uint64_t q = 23; // Public prime modulus
+
+    // Perform traditional Diffie-Hellman
+    diffie_hellman(a, q);
+
+    // Perform modified Diffie-Hellman and demonstrate insecurity
+    modified_diffie_hellman(a, q);
+
+    return 0;
+}
