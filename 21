@@ -1,0 +1,171 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <openssl/aes.h>
+#include <openssl/rand.h>
+
+void handleErrors() {
+    fprintf(stderr, "An error occurred\n");
+    exit(1);
+}
+
+// Padding function: adds padding to plaintext to make its size a multiple of AES_BLOCK_SIZE
+void addPadding(unsigned char *input, int input_len, unsigned char *output, int *output_len) {
+    int pad_len = AES_BLOCK_SIZE - (input_len % AES_BLOCK_SIZE);
+    if (pad_len == 0) {
+        pad_len = AES_BLOCK_SIZE;
+    }
+    memcpy(output, input, input_len);
+    for (int i = 0; i < pad_len; i++) {
+        output[input_len + i] = (i == 0) ? 0x80 : 0x00;
+    }
+    *output_len = input_len + pad_len;
+}
+
+// Remove padding from decrypted text
+void removePadding(unsigned char *input, int input_len, unsigned char *output, int *output_len) {
+    int i = input_len - 1;
+    while (input[i] == 0x00) {
+        i--;
+    }
+    if (input[i] == 0x80) {
+        *output_len = i;
+        memcpy(output, input, i);
+    } else {
+        handleErrors();
+    }
+}
+
+void print_hex(const unsigned char *data, int len) {
+    for (int i = 0; i < len; i++) {
+        printf("%02x", data[i]);
+    }
+    printf("\n");
+}
+
+// ECB mode encryption
+void encryptECB(const unsigned char *plaintext, int plaintext_len, const unsigned char *key, unsigned char *ciphertext) {
+    AES_KEY aes_key;
+    if (AES_set_encrypt_key(key, 128, &aes_key) < 0) {
+        handleErrors();
+    }
+    
+    for (int i = 0; i < plaintext_len; i += AES_BLOCK_SIZE) {
+        AES_ecb_encrypt(plaintext + i, ciphertext + i, &aes_key, AES_ENCRYPT);
+    }
+}
+
+// ECB mode decryption
+void decryptECB(const unsigned char *ciphertext, int ciphertext_len, const unsigned char *key, unsigned char *plaintext) {
+    AES_KEY aes_key;
+    if (AES_set_decrypt_key(key, 128, &aes_key) < 0) {
+        handleErrors();
+    }
+
+    for (int i = 0; i < ciphertext_len; i += AES_BLOCK_SIZE) {
+        AES_ecb_encrypt(ciphertext + i, plaintext + i, &aes_key, AES_DECRYPT);
+    }
+}
+
+// CBC mode encryption
+void encryptCBC(const unsigned char *plaintext, int plaintext_len, const unsigned char *key, const unsigned char *iv, unsigned char *ciphertext) {
+    AES_KEY aes_key;
+    unsigned char iv_copy[AES_BLOCK_SIZE];
+    memcpy(iv_copy, iv, AES_BLOCK_SIZE);
+
+    if (AES_set_encrypt_key(key, 128, &aes_key) < 0) {
+        handleErrors();
+    }
+    AES_cbc_encrypt(plaintext, ciphertext, plaintext_len, &aes_key, iv_copy, AES_ENCRYPT);
+}
+
+// CBC mode decryption
+void decryptCBC(const unsigned char *ciphertext, int ciphertext_len, const unsigned char *key, const unsigned char *iv, unsigned char *plaintext) {
+    AES_KEY aes_key;
+    unsigned char iv_copy[AES_BLOCK_SIZE];
+    memcpy(iv_copy, iv, AES_BLOCK_SIZE);
+
+    if (AES_set_decrypt_key(key, 128, &aes_key) < 0) {
+        handleErrors();
+    }
+    AES_cbc_encrypt(ciphertext, plaintext, ciphertext_len, &aes_key, iv_copy, AES_DECRYPT);
+}
+
+// CFB mode encryption
+void encryptCFB(const unsigned char *plaintext, int plaintext_len, const unsigned char *key, const unsigned char *iv, unsigned char *ciphertext) {
+    AES_KEY aes_key;
+    unsigned char iv_copy[AES_BLOCK_SIZE];
+    memcpy(iv_copy, iv, AES_BLOCK_SIZE);
+    int num = 0;
+
+    if (AES_set_encrypt_key(key, 128, &aes_key) < 0) {
+        handleErrors();
+    }
+    AES_cfb128_encrypt(plaintext, ciphertext, plaintext_len, &aes_key, iv_copy, &num, AES_ENCRYPT);
+}
+
+// CFB mode decryption
+void decryptCFB(const unsigned char *ciphertext, int ciphertext_len, const unsigned char *key, const unsigned char *iv, unsigned char *plaintext) {
+    AES_KEY aes_key;
+    unsigned char iv_copy[AES_BLOCK_SIZE];
+    memcpy(iv_copy, iv, AES_BLOCK_SIZE);
+    int num = 0;
+
+    if (AES_set_encrypt_key(key, 128, &aes_key) < 0) {
+        handleErrors();
+    }
+    AES_cfb128_encrypt(ciphertext, plaintext, ciphertext_len, &aes_key, iv_copy, &num, AES_DECRYPT);
+}
+
+int main() {
+    // Key and IV setup
+    unsigned char key[AES_BLOCK_SIZE] = "0123456789abcdef"; // 16 bytes key
+    unsigned char iv[AES_BLOCK_SIZE];
+    if (!RAND_bytes(iv, AES_BLOCK_SIZE)) {
+        handleErrors();
+    }
+
+    // Plaintext setup
+    const char *plaintext = "This is a secret message to encrypt. It needs padding!";
+    int plaintext_len = strlen(plaintext);
+    unsigned char padded_plaintext[128];
+    int padded_plaintext_len;
+
+    addPadding((unsigned char *)plaintext, plaintext_len, padded_plaintext, &padded_plaintext_len);
+    
+    // Buffers for ciphertext and decrypted text
+    unsigned char ciphertext[128];
+    unsigned char decryptedtext[128];
+    int decryptedtext_len;
+
+    // ECB mode
+    encryptECB(padded_plaintext, padded_plaintext_len, key, ciphertext);
+    printf("ECB Encrypted: ");
+    print_hex(ciphertext, padded_plaintext_len);
+
+    decryptECB(ciphertext, padded_plaintext_len, key, decryptedtext);
+    removePadding(decryptedtext, padded_plaintext_len, decryptedtext, &decryptedtext_len);
+    decryptedtext[decryptedtext_len] = '\0'; // Null terminate the string
+    printf("ECB Decrypted: %s\n", decryptedtext);
+
+    // CBC mode
+    encryptCBC(padded_plaintext, padded_plaintext_len, key, iv, ciphertext);
+    printf("CBC Encrypted: ");
+    print_hex(ciphertext, padded_plaintext_len);
+
+    decryptCBC(ciphertext, padded_plaintext_len, key, iv, decryptedtext);
+    removePadding(decryptedtext, padded_plaintext_len, decryptedtext, &decryptedtext_len);
+    decryptedtext[decryptedtext_len] = '\0'; // Null terminate the string
+    printf("CBC Decrypted: %s\n", decryptedtext);
+
+    // CFB mode
+    encryptCFB(padded_plaintext, padded_plaintext_len, key, iv, ciphertext);
+    printf("CFB Encrypted: ");
+    print_hex(ciphertext, padded_plaintext_len);
+
+    decryptCFB(ciphertext, padded_plaintext_len, key, iv, decryptedtext);
+    decryptedtext[padded_plaintext_len] = '\0'; // Null terminate the string
+    printf("CFB Decrypted: %s\n", decryptedtext);
+
+    return 0;
+}
