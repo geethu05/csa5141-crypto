@@ -1,0 +1,60 @@
+#include <stdio.h>
+#include <stdint.h>
+
+// Function to compute gcd using Euclidean algorithm
+uint64_t gcd(uint64_t a, uint64_t b) {
+    while (b != 0) {
+        uint64_t t = b;
+        b = a % b;
+        a = t;
+    }
+    return a;
+}
+
+// Function to perform modular exponentiation
+uint64_t mod_exp(uint64_t base, uint64_t exp, uint64_t mod) {
+    uint64_t result = 1;
+    base = base % mod;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result = (result * base) % mod;
+        }
+        exp = exp >> 1;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+int main() {
+    uint64_t n = 3599; // Example modulus (in reality, n would be much larger)
+    uint64_t e = 31;   // Example public key exponent (in reality, e would be large)
+    uint64_t encrypted_chars[26]; // Store encrypted values for characters 'A' to 'Z'
+    char decrypted_message[100];  // Buffer to store the decrypted message
+
+    // Encrypt all possible plaintext values (0 to 25)
+    for (int i = 0; i < 26; i++) {
+        encrypted_chars[i] = mod_exp(i, e, n);
+        printf("Encrypted value of %c (plaintext %d): %lu\n", 'A' + i, i, encrypted_chars[i]);
+    }
+
+    // Example ciphertext to decrypt (in reality, this would be provided)
+    uint64_t ciphertext[] = {2401, 1408, 1916, 676, 3487, 1480, 808, 676, 676, 676}; // Example encrypted message
+    size_t ciphertext_len = sizeof(ciphertext) / sizeof(ciphertext[0]);
+
+    // Decrypt each character in the ciphertext
+    for (size_t i = 0; i < ciphertext_len; i++) {
+        uint64_t c = ciphertext[i];
+        for (int j = 0; j < 26; j++) {
+            if (c == encrypted_chars[j]) {
+                decrypted_message[i] = 'A' + j;
+                break;
+            }
+        }
+    }
+    decrypted_message[ciphertext_len] = '\0'; // Null-terminate the string
+
+    // Print the decrypted message
+    printf("Decrypted message: %s\n", decrypted_message);
+
+    return 0;
+}
