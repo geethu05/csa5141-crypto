@@ -1,0 +1,58 @@
+#include <stdio.h>
+#include <string.h>
+#include <openssl/des.h>
+#include <openssl/rand.h>
+
+void handleErrors() {
+    fprintf(stderr, "An error occurred\n");
+    abort();
+}
+
+void print_data(const char *label, const unsigned char *data, int len) {
+    printf("%s: ", label);
+    for (int i = 0; i < len; i++) {
+        printf("%02X", data[i]);
+    }
+    printf("\n");
+}
+
+int main() {
+    DES_cblock key;
+    DES_key_schedule schedule;
+
+    // Generate a random key
+    if (!RAND_bytes((unsigned char *)&key, sizeof(DES_cblock))) {
+        handleErrors();
+    }
+
+    // Set the key
+    if (DES_set_key_checked(&key, &schedule) != 0) {
+        handleErrors();
+    }
+
+    // Input data (64 bits, 8 bytes)
+    unsigned char plaintext[8] = "example"; // 7 characters + 1 null terminator
+
+    // Padding if necessary (not needed in this specific example since input is already 8 bytes)
+    unsigned char ciphertext[8];
+    unsigned char decryptedtext[8];
+
+    // Encrypt
+    DES_ecb_encrypt((DES_cblock *)plaintext, (DES_cblock *)ciphertext, &schedule, DES_ENCRYPT);
+
+    // Print encrypted data
+    print_data("Ciphertext", ciphertext, sizeof(ciphertext));
+
+    // Decrypt
+    DES_ecb_encrypt((DES_cblock *)ciphertext, (DES_cblock *)decryptedtext, &schedule, DES_DECRYPT);
+
+    // Print decrypted data
+    print_data("Decrypted text", decryptedtext, sizeof(decryptedtext));
+
+    // Ensure the decrypted text is null-terminated (if it is text data)
+    decryptedtext[7] = '\0'; // null-terminate string
+
+    printf("Decrypted text: %s\n", decryptedtext);
+
+    return 0;
+}
