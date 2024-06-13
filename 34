@@ -1,0 +1,129 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <openssl/des.h>
+#include <openssl/rand.h>
+
+void handleErrors(const char *message) {
+    fprintf(stderr, "%s\n", message);
+    exit(1);
+}
+
+void print_data(const char *label, const unsigned char *data, int len) {
+    printf("%s: ", label);
+    for (int i = 0; i < len; i++) {
+        printf("%02X", data[i]);
+    }
+    printf("\n");
+}
+
+void pad(unsigned char *input, int len, unsigned char *output, int block_size) {
+    int padding_len = block_size - (len % block_size);
+    memcpy(output, input, len);
+    memset(output + len, 0, padding_len - 1);
+    output[len + padding_len - 1] = (unsigned char)padding_len;
+}
+
+void unpad(unsigned char *input, int *len) {
+    int padding_len = input[*len - 1];
+    *len -= padding_len;
+}
+
+void des_encrypt_decrypt_ecb(unsigned char *input, int len, unsigned char *key, int encrypt) {
+    DES_cblock key_block;
+    DES_key_schedule schedule;
+    DES_cblock input_block, output_block;
+
+    memcpy(key_block, key, 8);
+    if (DES_set_key_checked(&key_block, &schedule) != 0) {
+        handleErrors("Key error.");
+    }
+
+    int num_blocks = len / 8;
+    for (int i = 0; i < num_blocks; i++) {
+        memcpy(input_block, input + i * 8, 8);
+        DES_ecb_encrypt(&input_block, &output_block, &schedule, encrypt);
+        memcpy(input + i * 8, output_block, 8);
+    }
+}
+
+void des_encrypt_decrypt_cbc(unsigned char *input, int len, unsigned char *key, unsigned char *iv, int encrypt) {
+    DES_cblock key_block;
+    DES_key_schedule schedule;
+
+    memcpy(key_block, key, 8);
+    if (DES_set_key_checked(&key_block, &schedule) != 0) {
+        handleErrors("Key error.");
+    }
+
+    DES_ncbc_encrypt(input, input, len, &schedule, (DES_cblock *)iv, encrypt);
+}
+
+void des_encrypt_decrypt_cfb(unsigned char *input, int len, unsigned char *key, unsigned char *iv, int encrypt) {
+    DES_cblock key_block;
+    DES_key_schedule schedule;
+    int num = 0;
+
+    memcpy(key_block, key, 8);
+    if (DES_set_key_checked(&key_block, &schedule) != 0) {
+        handleErrors("Key error.");
+    }
+
+    DES_cfb64_encrypt(input, input, len, &schedule, (DES_cblock *)iv, &num, encrypt);
+}
+
+int main() {
+    unsigned char key[8] = "mykey123";  // 8-byte key
+    unsigned char iv[8] = "myiv1234";   // 8-byte initialization vector
+
+    const char *plaintext = "This is a test message for DES encryption.";
+    int plaintext_len = strlen(plaintext);
+
+    // Padding
+    int padded_len = ((plaintext_len / 8) + 1) * 8;
+    unsigned char padded_plaintext[padded_len];
+    pad((unsigned char *)plaintext, plaintext_len, padded_plaintext, 8);
+
+    unsigned char ciphertext[padded_len];
+    unsigned char decryptedtext[padded_len];
+
+    // ECB Mode
+    printf("ECB Mode:\n");
+    memcpy(ciphertext, padded_plaintext, padded_len);
+    des_encrypt_decrypt_ecb(ciphertext, padded_len, key, DES_ENCRYPT);
+    print_data("Ciphertext", ciphertext, padded_len);
+    des_encrypt_decrypt_ecb(ciphertext, padded_len, key, DES_DECRYPT);
+    print_data("Decrypted", ciphertext, padded_len);
+    int decrypted_len = padded_len;
+    unpad(ciphertext, &decrypted_len);
+    printf("Decrypted text: %.*s\n", decrypted_len, ciphertext);
+
+    // CBC Mode
+    printf("\nCBC Mode:\n");
+    memcpy(ciphertext, padded_plaintext, padded_len);
+    unsigned char iv_copy[8];
+    memcpy(iv_copy, iv, 8);
+    des_encrypt_decrypt_cbc(ciphertext, padded_len, key, iv_copy, DES_ENCRYPT);
+    print_data("Ciphertext", ciphertext, padded_len);
+    memcpy(iv_copy, iv, 8);
+    des_encrypt_decrypt_cbc(ciphertext, padded_len, key, iv_copy, DES_DECRYPT);
+    print_data("Decrypted", ciphertext, padded_len);
+    decrypted_len = padded_len;
+    unpad(ciphertext, &decrypted_len);
+    printf("Decrypted text: %.*s\n", decrypted_len, ciphertext);
+
+    // CFB Mode
+    printf("\nCFB Mode:\n");
+    memcpy(ciphertext, padded_plaintext, padded_len);
+    memcpy(iv_copy, iv, 8);
+    des_encrypt_decrypt_cfb(ciphertext, padded_len, key, iv_copy, DES_ENCRYPT);
+    print_data("Ciphertext", ciphertext, padded_len);
+    memcpy(iv_copy, iv, 8);
+    des_encrypt_decrypt_cfb(ciphertext, padded_len, key, iv_copy, DES_DECRYPT);
+    print_data("Decrypted", ciphertext, padded_len);
+    decrypted_len = padded_len;
+    unpad(ciphertext, &decrypted_len);
+    printf("Decrypted text: %.*s\n", decrypted_len, ciphertext);
+
+    return 0;
+}
