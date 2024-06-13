@@ -1,0 +1,96 @@
+#include <stdio.h>
+#include <openssl/dsa.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/err.h>
+#include <openssl/sha.h>
+#include <string.h>
+
+void handleErrors() {
+    ERR_print_errors_fp(stderr);
+    abort();
+}
+
+void print_signature(const unsigned char *sig, unsigned int sig_len) {
+    for (unsigned int i = 0; i < sig_len; i++) {
+        printf("%02x", sig[i]);
+    }
+    printf("\n");
+}
+
+void dsa_sign(const char *message) {
+    DSA *dsa = DSA_new();
+    if (DSA_generate_parameters_ex(dsa, 1024, NULL, 0, NULL, NULL, NULL) != 1) {
+        handleErrors();
+    }
+    if (DSA_generate_key(dsa) != 1) {
+        handleErrors();
+    }
+
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char *)message, strlen(message), hash);
+
+    unsigned char sig1[DSA_size(dsa)];
+    unsigned int sig1_len;
+    if (DSA_sign(0, hash, SHA256_DIGEST_LENGTH, sig1, &sig1_len, dsa) != 1) {
+        handleErrors();
+    }
+
+    unsigned char sig2[DSA_size(dsa)];
+    unsigned int sig2_len;
+    if (DSA_sign(0, hash, SHA256_DIGEST_LENGTH, sig2, &sig2_len, dsa) != 1) {
+        handleErrors();
+    }
+
+    printf("DSA Signature 1: ");
+    print_signature(sig1, sig1_len);
+    printf("DSA Signature 2: ");
+    print_signature(sig2, sig2_len);
+
+    DSA_free(dsa);
+}
+
+void rsa_sign(const char *message) {
+    RSA *rsa = RSA_new();
+    BIGNUM *bn = BN_new();
+    BN_set_word(bn, RSA_F4);
+
+    if (RSA_generate_key_ex(rsa, 2048, bn, NULL) != 1) {
+        handleErrors();
+    }
+
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char *)message, strlen(message), hash);
+
+    unsigned char sig[RSA_size(rsa)];
+    unsigned int sig_len;
+    if (RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, sig, &sig_len, rsa) != 1) {
+        handleErrors();
+    }
+
+    unsigned char sig2[RSA_size(rsa)];
+    unsigned int sig2_len;
+    if (RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, sig2, &sig2_len, rsa) != 1) {
+        handleErrors();
+    }
+
+    printf("RSA Signature 1: ");
+    print_signature(sig, sig_len);
+    printf("RSA Signature 2: ");
+    print_signature(sig2, sig2_len);
+
+    RSA_free(rsa);
+    BN_free(bn);
+}
+
+int main() {
+    const char *message = "The quick brown fox jumps over the lazy dog";
+
+    printf("Signing with DSA...\n");
+    dsa_sign(message);
+
+    printf("\nSigning with RSA...\n");
+    rsa_sign(message);
+
+    return 0;
+}
